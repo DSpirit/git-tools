@@ -237,6 +237,8 @@ def parselog(merge=False, filterlist=[]):
                 # (dated 1322296064) from the DragonFly repo.
                 #if readdedfiles[file]['m'] != 1322296064:
                 #    logger.info(file + " " + str(mtime))
+                # use below line with `git restore-mtime | & uniq -c`
+                #logger.info(str(readdedfiles[file]['m']))
                 del readdedfiles[file]
                 try:
                     os.utime(os.path.join(workdir, file), (mtime, mtime))
