@@ -193,10 +193,16 @@ for line in gitobj.stdout:
          "This could lead to undesirable results for modified files.\n"
          "Please, commit your changes (or use --force) and try again.\n"
          "Aborting")
-        gitobj.kill()
+        try:
+            gitobj.kill()
+        except OSError:
+            pass
         sys.exit(1)
 
-gitobj.terminate()
+try:
+    gitobj.terminate()
+except OSError:
+    pass
 
 if ignoredfiles:
     filelist -= ignoredlist
@@ -244,7 +250,10 @@ def parselog(merge=False, filterlist=[]):
         if not files:
             break
 
-    gitobj.terminate()
+    try:
+        gitobj.terminate()
+    except OSError:
+        pass
 
 parselog(args.merge)
 
