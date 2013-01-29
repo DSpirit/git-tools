@@ -219,6 +219,7 @@ def parselog(merge=False, filterlist=[]):
                               (['-m'] if merge else []) +
                               filterlist,
                               stdout=subprocess.PIPE)
+    readdedfiles = dict()
     for line in gitobj.stdout:
         loglines += 1
         line = line.strip()
@@ -229,12 +230,32 @@ def parselog(merge=False, filterlist=[]):
         # File line
         if line.startswith(':'):
             file = line.split('\t')[-1]
+            rev = line.split(' ')[3]
+            if file in readdedfiles and readdedfiles[file]['r'] == rev:
+                # This whole code is to ignore
+                # 86d7f5d305c6adaa56ff4582ece9859d73106103
+                # (dated 1322296064) from the DragonFly repo.
+                #if readdedfiles[file]['m'] != 1322296064:
+                #    logger.info(file + " " + str(mtime))
+                del readdedfiles[file]
+                try:
+                    os.utime(os.path.join(workdir, file), (mtime, mtime))
+                    touches += 1
+                except Exception as e:
+                    logger.error("ERROR: %s\n", e)
+                    errors += 1
+            else:
+                if file in readdedfiles:
+                    del readdedfiles[file]
             if file in filelist:
                 logger.debug("%d\t%d\t%d\t%s\t%s",
                              loglines, commits, files,
                              time.ctime(mtime), file)
                 filelist.remove(file)
                 files -= 1
+                # try ignoring bogus repo-wide commits, e.g. in DragonFly
+                if line.split(' ')[0] == ":000000" and line.split(' ')[2] == "0000000...":
+                    readdedfiles[file] = dict(r = rev, m = mtime)
                 try:
                     os.utime(os.path.join(workdir, file), (mtime, mtime))
                     touches += 1
@@ -247,7 +268,7 @@ def parselog(merge=False, filterlist=[]):
             mtime = long(line)
 
         # All files done?
-        if not files:
+        if not files and not readdedfiles:
             break
 
     try:
