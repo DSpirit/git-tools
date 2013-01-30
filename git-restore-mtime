@@ -260,6 +260,7 @@ def parselog(merge=False, filterlist=[]):
             else:
                 if file in readdedfiles:
                     del readdedfiles[file]
+
             if file in filelist:
                 logger.debug("%d\t%d\t%d\t%s\t%s",
                              loglines, commits, files,
@@ -286,6 +287,20 @@ def parselog(merge=False, filterlist=[]):
                 except Exception as e:
                     logger.error("ERROR: %s\n", e)
                     errors += 1
+            else:
+                if line.split(' ')[4].split('\t')[0] == "D":
+                    #logger.info("deleted: " + file + " @ " + str(mtime))
+                    dir = file
+                    while dir:
+                        dir = os.path.dirname(dir)
+                        if dir in dirlist:
+                            if dirlist[dir] < mtime:
+                                #logger.info("deleted recently: " + file + " @ " + str(mtime))
+                                dirlist[dir] = mtime
+                        else:
+                            if os.path.isdir(dir):
+                                dirlist[dir] = mtime
+
         # Date line
         else:
             commits += 1
