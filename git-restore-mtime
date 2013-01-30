@@ -220,6 +220,7 @@ def parselog(merge=False, filterlist=[]):
                               filterlist,
                               stdout=subprocess.PIPE)
     readdedfiles = dict()
+    dirlist = dict()
     for line in gitobj.stdout:
         loglines += 1
         line = line.strip()
@@ -240,6 +241,16 @@ def parselog(merge=False, filterlist=[]):
                 # use below line with `git restore-mtime | & uniq -c`
                 #logger.info(str(readdedfiles[file]['m']))
                 del readdedfiles[file]
+
+                dir = file
+                while dir:
+                    dir = os.path.dirname(dir)
+                    if dir in dirlist:
+                        if dirlist[dir] < mtime:
+                            dirlist[dir] = mtime
+                    else:
+                        dirlist[dir] = mtime
+
                 try:
                     os.utime(os.path.join(workdir, file), (mtime, mtime))
                     touches += 1
@@ -258,6 +269,17 @@ def parselog(merge=False, filterlist=[]):
                 # try ignoring bogus repo-wide commits, e.g. in DragonFly
                 if line.split(' ')[0] == ":000000" and line.split(' ')[2] == "0000000...":
                     readdedfiles[file] = dict(r = rev, m = mtime)
+                else:
+
+                    dir = file
+                    while dir:
+                        dir = os.path.dirname(dir)
+                        if dir in dirlist:
+                            if dirlist[dir] < mtime:
+                                dirlist[dir] = mtime
+                        else:
+                            dirlist[dir] = mtime
+
                 try:
                     os.utime(os.path.join(workdir, file), (mtime, mtime))
                     touches += 1
@@ -272,6 +294,25 @@ def parselog(merge=False, filterlist=[]):
         # All files done?
         if not files and not readdedfiles:
             break
+
+    for file, filed in readdedfiles.iteritems():
+        mtime = filed['m']
+        dir = file
+        while dir:
+            dir = os.path.dirname(dir)
+            if dir in dirlist:
+                if dirlist[dir] < mtime:
+                    dirlist[dir] = mtime
+            else:
+                dirlist[dir] = mtime
+
+    for file, mtime in dirlist.iteritems():
+        try:
+            os.utime(os.path.join(workdir, file), (mtime, mtime))
+            touches += 1
+        except Exception as e:
+            logger.error("ERROR: %s\n", e)
+            errors += 1
 
     try:
         gitobj.terminate()
